@@ -6,17 +6,10 @@ A Claude Code plugin that renders plan-shaped markdown into a dedicated, live-up
 window — not a terminal dump, not an IDE tab, not a browser tab lost among forty others.
 When Claude edits the plan, the window updates in place and keeps your scroll position.
 
-```
-┌─ Documents ──┬──────────────────────────────────────────────┐
-│ plan.md      │  Plan: move thumbnails to a cache            │
-│ api-spec.md  │  updated just now · 940 words · ▓▓▓░ 2/4     │
-├─ Outline ────┼──────────────────────────────────────────────┤
-│ Goals        │  ## Goals                                    │
-│ Approach     │  ☑ Measure the current cold-start cost       │
-│   Rollout    │  ☑ Pick an eviction policy                   │
-│ Risks        │  ☐ Ship behind a flag                        │
-└──────────────┴──────────────────────────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/preview-dark.png">
+  <img src="docs/preview-light.png" alt="The peek window: a document rail and outline on the left, and a rendered plan with a task-progress bar, a table and a mermaid diagram on the right.">
+</picture>
 
 ## Install
 
@@ -53,6 +46,7 @@ the window opens or refreshes. Ordinary markdown is left alone.
 | **Light and dark** | Follows the system; `◐` cycles system → light → dark. |
 | **`⌘P`** | Print, which on macOS means *Save as PDF*. |
 | **`⌘\`** | Hide the sidebar. **`⌘R`** forces a re-render. |
+| **`?theme=`** | `…/?theme=dark` pins a theme for one page load without changing your saved preference. |
 
 ## What counts as a plan
 
@@ -128,8 +122,12 @@ ln -s "$PWD/bin/peek" ~/.local/bin/peek   # optional, puts `peek` on PATH
 
 ```bash
 node --test test/*.test.js   # 28 tests, no setup required
-./tools/vendor.sh      # refresh vendor/ from pinned upstream releases
+./tools/vendor.sh            # refresh vendor/ from pinned upstream releases
+./tools/screenshot.sh        # regenerate the screenshots above
 ```
+
+The screenshots come out of headless Chrome against `tools/demo/`, so they are reproducible
+on any machine and need no screen-recording permission.
 
 The matcher is the part most worth tuning, and `test/matcher.test.js` is the place to argue
 for a change: add the case you think should or shouldn't open a window.

@@ -26,6 +26,8 @@ let mermaidReady = null;
 
 /* ---------------- theme ---------------- */
 
+let urlOverride = false;
+
 function applyTheme(mode) {
   const resolved =
     mode === 'system'
@@ -34,17 +36,23 @@ function applyTheme(mode) {
         : 'light'
       : mode;
   document.documentElement.dataset.theme = resolved;
-  localStorage.setItem('peek.theme', mode);
+  if (!urlOverride) localStorage.setItem('peek.theme', mode);
   if (mermaidReady) location.reload(); // mermaid bakes colors at render time
 }
 
+// ?theme=light|dark pins the theme for this page load without disturbing the
+// stored preference. Handy for screenshots, and for keeping a second window in
+// the other mode while comparing.
+const urlTheme = new URLSearchParams(location.search).get('theme');
+urlOverride = urlTheme === 'light' || urlTheme === 'dark';
 const savedTheme = localStorage.getItem('peek.theme') || 'system';
-applyTheme(savedTheme);
+applyTheme(urlTheme === 'light' || urlTheme === 'dark' ? urlTheme : savedTheme);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if ((localStorage.getItem('peek.theme') || 'system') === 'system') applyTheme('system');
 });
 
 $('#theme-btn').addEventListener('click', () => {
+  urlOverride = false; // an explicit click beats the URL and is worth remembering
   const order = ['system', 'light', 'dark'];
   const next = order[(order.indexOf(localStorage.getItem('peek.theme') || 'system') + 1) % 3];
   applyTheme(next);
