@@ -1,0 +1,75 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { userConfigPath, STATE_DIR } = require('./config');
+
+const DEFAULTS = {
+  enabled: true,
+  // Raise the window on update. Off by default: macOS asks for Automation/
+  // Accessibility permission the first time, and a silent live update is usually
+  // what you want while you are still typing in the terminal. macOS only.
+  focusWindow: false,
+  // Any of these in the file name (case-insensitive) marks it as a plan.
+  filenamePatterns: [
+    'plan', 'design', 'proposal', 'rfc', 'spec', 'roadmap',
+    'architecture', 'migration', 'implementation', 'todo', 'tasks', 'checklist',
+  ],
+  // Any of these substrings in the absolute path marks it as a plan.
+  pathPatterns: ['/scratchpad/', '/.claude/plans/', '/docs/plans/'],
+  // Or a top-level heading in the first part of the document that reads like one.
+  headingPattern:
+    '^#{1,2}\\s+.*\\b(plan|proposal|design|rfc|spec|roadmap|architecture|migration|implementation|approach)\\b',
+  // Never preview these, whatever else matches.
+  excludePatterns: ['node_modules/', '/CLAUDE.md', 'README', 'CHANGELOG', 'LICENSE', 'CONTRIBUTING'],
+  // Ignore stubs — a two-line file is not a plan worth a window.
+  minBytes: 200,
+};
+
+// Reads the user's config, writing the defaults out the first time so there is
+// something to edit. Unknown keys are preserved; missing ones fall back.
+function loadConfig() {
+  try {
+    return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(userConfigPath, 'utf8')) };
+  } catch (_) {
+    try {
+      fs.mkdirSync(STATE_DIR, { recursive: true });
+      fs.writeFileSync(userConfigPath, JSON.stringify(DEFAULTS, null, 2) + '\n');
+    } catch (_) {}
+    return DEFAULTS;
+  }
+}
+
+// Decides whether a written file is a plan worth putting on screen. Kept pure
+// apart from reading the file itself, so it is straightforward to test.
+function isPlan(file, cfg = DEFAULTS) {
+  const abs = path.resolve(file);
+  if (!/\.(md|markdown)$/i.test(abs)) return false;
+
+  const lower = abs.toLowerCase();
+  if (cfg.excludePatterns.some((p) => lower.includes(p.toLowerCase()))) return false;
+
+  let st;
+  try {
+    st = fs.statSync(abs);
+  } catch (_) {
+    return false; // the edit did not land
+  }
+  if (!st.isFile() || st.size < cfg.minBytes) return false;
+
+  const base = path.basename(abs).toLowerCase();
+  if (cfg.filenamePatterns.some((p) => base.includes(p.toLowerCase()))) return true;
+
+  // Path patterns are written with forward slashes; normalise for Windows.
+  const posix = abs.split(path.sep).join('/');
+  if (cfg.pathPatterns.some((p) => posix.includes(p))) return true;
+
+  try {
+    const head = fs.readFileSync(abs, 'utf8').slice(0, 4000);
+    if (new RegExp(cfg.headingPattern, 'im').test(head)) return true;
+  } catch (_) {}
+
+  return false;
+}
+
+module.exports = { isPlan, loadConfig, DEFAULTS };

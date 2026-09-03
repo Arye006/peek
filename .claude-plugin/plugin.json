@@ -1,0 +1,20 @@
+{
+  "name": "peek",
+  "version": "1.0.0",
+  "description": "Renders the markdown plans Claude writes into a live, dedicated preview window — no IDE, no browser tab, no terminal scrollback. Watches the file and updates in place as the plan changes.",
+  "author": {
+    "name": "deBilla",
+    "url": "https://github.com/deBilla"
+  },
+  "homepage": "https://github.com/deBilla/peek",
+  "repository": "https://github.com/deBilla/peek",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "preview",
+    "plan",
+    "documentation",
+    "live-reload",
+    "hooks"
+  ]
+}

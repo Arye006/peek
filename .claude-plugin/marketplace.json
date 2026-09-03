@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "peek",
+  "description": "Live preview windows for the markdown plans Claude Code writes",
+  "owner": {
+    "name": "deBilla",
+    "url": "https://github.com/deBilla"
+  },
+  "plugins": [
+    {
+      "name": "peek",
+      "description": "Renders the markdown plans Claude writes into a live, dedicated preview window — no IDE, no browser tab, no terminal scrollback.",
+      "author": { "name": "deBilla" },
+      "category": "productivity",
+      "source": "./",
+      "homepage": "https://github.com/deBilla/peek"
+    }
+  ]
+}

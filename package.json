@@ -1,0 +1,18 @@
+{
+  "name": "peek",
+  "version": "1.0.0",
+  "description": "Live markdown preview in a dedicated window, for the plans Claude Code writes",
+  "type": "commonjs",
+  "bin": { "peek": "bin/peek" },
+  "scripts": {
+    "test": "node --test test/",
+    "vendor": "./tools/vendor.sh"
+  },
+  "repository": { "type": "git", "url": "https://github.com/deBilla/peek.git" },
+  "homepage": "https://github.com/deBilla/peek",
+  "license": "MIT",
+  "author": "deBilla",
+  "keywords": ["markdown", "preview", "claude-code", "plugin", "live-reload"],
+  "engines": { "node": ">=18" },
+  "files": ["bin", "src", "vendor", "hooks", "commands", ".claude-plugin"]
+}

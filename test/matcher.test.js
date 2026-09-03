@@ -1,0 +1,65 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const { isPlan, DEFAULTS } = require('../src/matcher');
+
+const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'peek-test-'));
+const PAD = 'x'.repeat(400); // clears the minBytes floor
+
+function write(name, body) {
+  const p = path.join(DIR, name);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, body);
+  return p;
+}
+
+test('matches on a plan-ish filename', () => {
+  assert.ok(isPlan(write('rollout-plan.md', `# Anything\n\n${PAD}`), DEFAULTS));
+  assert.ok(isPlan(write('API-DESIGN.md', `# Anything\n\n${PAD}`), DEFAULTS));
+});
+
+test('matches on a plan-ish heading even with a neutral filename', () => {
+  assert.ok(isPlan(write('notes.md', `# Migration approach\n\n${PAD}`), DEFAULTS));
+  assert.ok(isPlan(write('scratch.md', `## Implementation plan\n\n${PAD}`), DEFAULTS));
+});
+
+test('matches on a plan-ish path', () => {
+  assert.ok(isPlan(write('docs/plans/thing.md', `# Thing\n\n${PAD}`), DEFAULTS));
+});
+
+test('ignores ordinary markdown', () => {
+  assert.equal(isPlan(write('notes.md', `# Meeting notes\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('journal.md', `# Tuesday\n\n${PAD}`), DEFAULTS), false);
+});
+
+test('ignores excluded files however they are named', () => {
+  assert.equal(isPlan(write('README.md', `# Project plan\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('CHANGELOG.md', `# Roadmap\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('node_modules/pkg/plan.md', `# Plan\n\n${PAD}`), DEFAULTS), false);
+});
+
+test('ignores non-markdown files', () => {
+  assert.equal(isPlan(write('plan.txt', `# Plan\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('plan.js', `// plan\n${PAD}`), DEFAULTS), false);
+});
+
+test('ignores stubs below the size floor', () => {
+  assert.equal(isPlan(write('tiny-plan.md', '# Plan\n'), DEFAULTS), false);
+});
+
+test('ignores files that do not exist', () => {
+  assert.equal(isPlan(path.join(DIR, 'ghost-plan.md'), DEFAULTS), false);
+});
+
+test('honours a caller-supplied config', () => {
+  const strict = { ...DEFAULTS, filenamePatterns: ['blueprint'], pathPatterns: [], headingPattern: 'zzz' };
+  assert.ok(isPlan(write('blueprint.md', `# X\n\n${PAD}`), strict));
+  assert.equal(isPlan(write('plan.md', `# X\n\n${PAD}`), strict), false);
+});
+
+test.after(() => fs.rmSync(DIR, { recursive: true, force: true }));

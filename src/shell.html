@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peek</title>
+<link rel="stylesheet" href="/assets/theme.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='14'%3E%F0%9F%93%84%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app">
+  <aside id="rail">
+    <div class="rail-title">Documents</div>
+    <ul class="doc-list" id="docs"></ul>
+    <div class="rail-title">Outline</div>
+    <ul id="toc"></ul>
+  </aside>
+
+  <div id="main">
+    <header>
+      <div class="head-row">
+        <span class="doc-name" id="doc-name">peek</span>
+        <span class="doc-path" id="doc-path"></span>
+        <span class="head-actions">
+          <button id="rail-btn" title="Toggle sidebar (⌘\)">☰</button>
+          <button id="reveal-btn" title="Reveal in Finder">⤴</button>
+          <button id="print-btn" title="Print / save as PDF (⌘P)">⎙</button>
+          <button id="theme-btn" title="Theme">◐</button>
+        </span>
+      </div>
+      <div class="head-meta">
+        <span id="stamp"></span>
+        <span id="words"></span>
+        <span class="progress hidden" id="progress">
+          <span class="bar"><span class="fill"></span></span>
+          <span class="ptext"></span>
+        </span>
+      </div>
+    </header>
+
+    <div id="scroller">
+      <article id="article" hidden></article>
+      <div id="empty">
+        <p>No document open.</p>
+        <code>peek path/to/plan.md</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/assets/client.js"></script>
+</body>
+</html>

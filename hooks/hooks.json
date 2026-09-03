@@ -1,0 +1,17 @@
+{
+  "description": "Opens a live preview window when Claude writes or edits a plan-shaped markdown file.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-preview.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
