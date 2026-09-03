@@ -18,9 +18,14 @@ When Claude edits the plan, the window updates in place and keeps your scroll po
 /plugin install peek@peek
 ```
 
-That's the whole install. No `npm install`, no build step, no dependencies — peek vendors
-everything it needs as committed single files, so the plugin works the moment it is cloned,
-offline included.
+**You need Node 18 or newer on your PATH.** Claude Code ships as a native binary and does not
+bundle Node, so check with `node --version` before anything else. Without it peek stays
+silent rather than erroring on every file you write — so if the window never appears, that is
+the first thing to rule out.
+
+Beyond Node, that's the whole install. No `npm install`, no build step, no dependencies — peek
+vendors everything it needs as committed single files, so the plugin works the moment it is
+cloned, offline included.
 
 ## Use
 
@@ -122,12 +127,21 @@ ln -s "$PWD/bin/peek" ~/.local/bin/peek   # optional, puts `peek` on PATH
 
 ```bash
 node --test test/*.test.js   # 28 tests, no setup required
+npm install && npm run typecheck   # type-check the sources
 ./tools/vendor.sh            # refresh vendor/ from pinned upstream releases
 ./tools/screenshot.sh        # regenerate the screenshots above
 ```
 
 The screenshots come out of headless Chrome against `tools/demo/`, so they are reproducible
 on any machine and need no screen-recording permission.
+
+**On TypeScript.** The sources are plain JavaScript, type-checked by `tsc --noEmit` in CI.
+That is deliberate rather than lazy: a plugin is installed by git clone with no build step, so
+compiled output would mean either committing a `dist/` beside the sources or requiring Node
+22.18+ for native type stripping — and the Node floor is already the main install barrier.
+Checked JavaScript gets the type safety without either cost. Only the type checker is a
+dev dependency; users install nothing. The vendored bundles sit behind hand-written `.d.ts`
+surfaces in `vendor/`, which keeps 4 MB of minified upstream code out of the checker.
 
 The matcher is the part most worth tuning, and `test/matcher.test.js` is the place to argue
 for a change: add the case you think should or shouldn't open a window.

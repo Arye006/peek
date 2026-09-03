@@ -22,14 +22,28 @@ jobs:
       - name: Run tests
         run: node --test test/*.test.js
 
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+
   no-dependencies:
     name: no runtime dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: package.json declares no dependencies
+      - name: package.json declares no runtime dependencies
         run: |
           node -e '
+            // devDependencies are fine — they are the type checker, which
+            // contributors run and users never touch. Anything a user would
+            // have to install is not.
             const p = require("./package.json");
             const deps = { ...p.dependencies, ...p.optionalDependencies, ...p.peerDependencies };
             if (Object.keys(deps).length) {

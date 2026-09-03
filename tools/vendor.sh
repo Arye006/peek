@@ -52,3 +52,5 @@ Full licence texts sit beside the bundles in this directory.
 EOF
 
 echo "peek: vendor/ is up to date"
+echo "note: vendor/*.d.ts describe only what peek calls — if an upstream API"
+echo "      changed, update them and re-run \`npm run typecheck\`"

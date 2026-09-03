@@ -212,7 +212,7 @@ function allowed(target) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://127.0.0.1');
+  const url = new URL(req.url || '/', 'http://127.0.0.1');
   const route = url.pathname;
 
   try {
@@ -329,7 +329,11 @@ async function main() {
     await listen(0);
   }
 
-  const port = server.address().port;
+  const address = server.address();
+  if (typeof address !== 'object' || address === null) {
+    throw new Error('server did not bind a TCP port');
+  }
+  const port = address.port;
   fs.writeFileSync(statePath, JSON.stringify({ port, serverPid: process.pid, started: Date.now() }, null, 2));
 
   if (initial) await openDoc(initial);
