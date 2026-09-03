@@ -76,7 +76,12 @@ uninstalling the plugin.
 
 peek asks your operating system for nothing. It binds an HTTP server to `127.0.0.1`, serves
 files strictly from the directories of documents you have opened, makes no network requests,
-and collects nothing. The window runs in its own browser profile under
+and collects nothing.
+
+Markdown can contain raw HTML, and a plan pulled from a repo you do not control is untrusted
+input, so the page is served under a strict content security policy: it may load only its own
+assets, which means inline script, `onerror`-style attributes and outbound connections are all
+refused. Diagrams still work — mermaid needs neither `eval` nor inline script. The window runs in its own browser profile under
 `~/.claude/peek/browser-profile`, so your everyday session is untouched. The server exits by
 itself five minutes after you close the window.
 
@@ -86,10 +91,17 @@ Automation prompt. Left off, the window updates quietly in the background.
 
 ## Requirements
 
-Node 18+ (Claude Code already brings it) and a Chromium-family browser — Chrome, Chromium,
-Brave, Edge or Vivaldi — for the dedicated-window mode. Without one, peek falls back to a tab
-in your default browser. Tested on macOS and Linux; Windows paths are implemented but less
-travelled, and bug reports are welcome.
+**Node 18 or newer.** Claude Code ships as a native binary and does not bundle Node, so this
+is a genuine requirement, not a formality — check with `node --version`. If Node is missing or
+too old the hook does nothing at all rather than erroring on every file you write; run
+`/peek:status` and you will get a real message saying why.
+
+**A Chromium-family browser** — Chrome, Chromium, Brave, Edge or Vivaldi — for the
+dedicated-window mode, since `--app=` is a Chromium feature. Without one, peek falls back to a
+tab in your default browser.
+
+Tested on macOS and Linux. Windows paths are implemented but lightly travelled; the hook needs
+a POSIX `sh` on PATH, which Git Bash and WSL both provide. Bug reports welcome.
 
 ## Without the plugin
 

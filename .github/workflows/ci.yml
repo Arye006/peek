@@ -66,6 +66,25 @@ jobs:
             if (!market.plugins.some(p => p.name === plugin.name)) throw new Error("marketplace does not list the plugin");
             console.log("manifests OK:", plugin.name, plugin.version);
           '
+      - name: plugin.json and package.json agree on the version
+        run: |
+          node -e '
+            const a = require("./.claude-plugin/plugin.json").version;
+            const b = require("./package.json").version;
+            if (a !== b) throw new Error(`version drift: plugin.json ${a} vs package.json ${b}`);
+            console.log("version OK:", a);
+          '
+      - name: hook degrades silently without node
+        run: |
+          printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"/tmp/x-plan.md"}}' \
+            | env PATH=/usr/bin:/bin sh hooks/plan-preview.sh
+          echo "silent no-op OK"
+      - name: no editor or OS cruft committed
+        run: |
+          if git ls-files | grep -Ei '(^|/)(\.DS_Store|Thumbs\.db|.*\.swp)$'; then
+            echo "cruft is tracked"; exit 1
+          fi
+          echo "tree is clean"
       - name: every command file has frontmatter
         run: |
           for f in commands/*.md; do

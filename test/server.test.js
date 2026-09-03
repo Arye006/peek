@@ -103,3 +103,13 @@ test('pushes a change event when the file is edited', async () => {
 
   assert.ok(seen.join('').includes('event: changed'), 'expected a changed event');
 });
+
+test('locks the page down with a content security policy', async () => {
+  const res = await get('/');
+  const csp = res.headers.get('content-security-policy');
+  assert.ok(csp, 'no CSP header');
+  assert.match(csp, /script-src 'self'/);      // blocks inline script from markdown
+  assert.match(csp, /connect-src 'self'/);     // blocks exfiltration
+  assert.doesNotMatch(csp, /unsafe-inline[^;]*script/);
+  assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+});

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-preview.js\"",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-preview.sh\"",
             "timeout": 5
           }
         ]

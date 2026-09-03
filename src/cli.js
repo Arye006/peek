@@ -130,6 +130,11 @@ config:  ~/.claude/peek/config.json
 `;
 
 async function main() {
+  const major = Number(process.versions.node.split('.')[0]);
+  if (major < 18) {
+    throw new Error(`needs Node 18 or newer (found ${process.versions.node}) — peek uses fetch()`);
+  }
+
   const argv = process.argv.slice(2);
   const opts = {
     noWindow: argv.includes('--no-window'),

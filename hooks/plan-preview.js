@@ -18,6 +18,10 @@ const { isPlan, loadConfig } = require('../src/matcher');
 
 const WATCHED_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
 
+// peek needs fetch() and node:test, both of which land in 18. An older Node is
+// treated like a missing one: do nothing rather than fail on every write.
+const NODE_OK = Number(process.versions.node.split('.')[0]) >= 18;
+
 function readStdin() {
   return new Promise((resolve) => {
     let data = '';
@@ -31,6 +35,8 @@ function readStdin() {
 }
 
 (async () => {
+  if (!NODE_OK) return;
+
   const cfg = loadConfig();
   if (!cfg.enabled) return;
 

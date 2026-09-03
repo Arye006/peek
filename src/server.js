@@ -137,11 +137,31 @@ async function openDoc(file) {
   broadcast('changed', { switched: true });
 }
 
+// Markdown may contain raw HTML, and marked renders it as written — a plan
+// pulled from an untrusted repo could otherwise run script inside a page that
+// is allowed to read local files. This policy lets the page load only its own
+// assets, so injected inline script, event-handler attributes and outbound
+// requests are all refused. Verified not to affect mermaid, whose bundle needs
+// neither eval nor inline script.
+const CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 function send(res, code, body, type = 'application/json') {
   res.writeHead(code, {
     'Content-Type': type,
     'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': 'null',
+    'Content-Security-Policy': CSP,
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
   });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
@@ -225,6 +245,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
+        'Content-Security-Policy': CSP,
         Connection: 'keep-alive',
       });
       res.write('retry: 1000\n\n');
