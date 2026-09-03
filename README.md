@@ -8,13 +8,13 @@ When Claude edits the plan, the window updates in place and keeps your scroll po
 
 ```
 ┌─ Documents ──┬──────────────────────────────────────────────┐
-│ plan.md      │  Migration plan: user deletion service       │
+│ plan.md      │  Plan: move thumbnails to a cache            │
 │ api-spec.md  │  updated just now · 940 words · ▓▓▓░ 2/4     │
 ├─ Outline ────┼──────────────────────────────────────────────┤
 │ Goals        │  ## Goals                                    │
-│ Approach     │  ☑ Audit the current deletion paths          │
-│   Rollout    │  ☑ Agree a retention window                  │
-│ Risks        │  ☐ Ship the batched deleter                  │
+│ Approach     │  ☑ Measure the current cold-start cost       │
+│   Rollout    │  ☑ Pick an eviction policy                   │
+│ Risks        │  ☐ Ship behind a flag                        │
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
