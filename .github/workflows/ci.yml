@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Run tests
-        run: node --test test/
+        run: node --test test/*.test.js
 
   no-dependencies:
     name: no runtime dependencies

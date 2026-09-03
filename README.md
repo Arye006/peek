@@ -127,7 +127,7 @@ ln -s "$PWD/bin/peek" ~/.local/bin/peek   # optional, puts `peek` on PATH
 ## Contributing
 
 ```bash
-node --test test/      # 27 tests, no setup required
+node --test test/*.test.js   # 28 tests, no setup required
 ./tools/vendor.sh      # refresh vendor/ from pinned upstream releases
 ```
 
