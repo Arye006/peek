@@ -3,8 +3,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn, execFile } = require('child_process');
-const { browserStatePath, browserProfile, STATE_DIR, userConfigPath } = require('./config');
+const { spawn, execFile, execFileSync } = require('child_process');
+const { browserStatePath, browserProfile, launchLockPath, STATE_DIR, userConfigPath } = require('./config');
 
 const PLATFORM = process.platform;
 
@@ -81,6 +81,8 @@ function findBrowser() {
 
 /* ------------------------------------------------------------ helpers */
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 function alive(pid) {
   if (!pid) return false;
   try {
@@ -89,6 +91,60 @@ function alive(pid) {
   } catch (_) {
     return false;
   }
+}
+
+// pids are recycled, so a live pid is not proof it is still our browser. Check
+// the command line before signalling it — killing whatever inherited the number
+// would be a good deal worse than failing to close a window. Windows has no
+// equally cheap equivalent, so there the pid is taken at face value.
+function ours(pid) {
+  if (!alive(pid)) return false;
+  if (PLATFORM === 'win32') return true;
+  try {
+    const cmd = execFileSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], { encoding: 'utf8' });
+    return cmd.includes(browserProfile);
+  } catch (_) {
+    return false;
+  }
+}
+
+// Every browser process running out of peek's profile. Chrome hands a second
+// `--app=` launch to the instance that already owns the profile and the process
+// that was spawned exits at once, so the pid in browser.json can be a launcher
+// that is long gone while the window it opened is still up. Asking the process
+// table sidesteps that bookkeeping entirely. Helper processes carry --type=;
+// the browser itself does not, and killing it takes its helpers with it.
+function profilePids() {
+  if (PLATFORM === 'win32') return [];
+  try {
+    const out = execFileSync('ps', ['-ww', '-Ao', 'pid=,command='], { encoding: 'utf8' });
+    return out
+      .split('\n')
+      .filter((l) => l.includes(browserProfile) && !l.includes('--type='))
+      .map((l) => Number(l.trim().split(/\s+/)[0]))
+      .filter((n) => Number.isInteger(n) && n > 0 && n !== process.pid);
+  } catch (_) {
+    return [];
+  }
+}
+
+// SIGTERM, then wait for the process to actually go: it holds the singleton
+// lock on the browser profile, and a new window cannot own that profile until
+// the lock is released.
+async function terminate(pid) {
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch (_) {
+    return;
+  }
+  const deadline = Date.now() + 2000;
+  while (alive(pid) && Date.now() < deadline) await sleep(100);
+  if (alive(pid)) {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch (_) {}
+  }
+  await sleep(150);
 }
 
 function readState() {
@@ -177,25 +233,114 @@ function launch(url, { width = 1080, height = 1180 } = {}) {
   return { mode: 'app-window', pid: child.pid, browser: path.basename(bin) };
 }
 
-// Opens the preview window if it is not already running. An existing window is
-// left where it is — its content updates over SSE without stealing focus.
-function ensure(url) {
+// Whether a window is actually on screen, asked of the server rather than the
+// operating system: the page holds an SSE connection open for as long as it is
+// loaded, so a connected client is a window and no connected client is not.
+//
+// A live browser process is NOT the same question. Close the preview window on
+// macOS and Chrome stays running with no windows at all — it will happily sit
+// there for hours — so a pid check reports "already open" for a window that
+// vanished long ago, and nothing ever opens again.
+//
+// Returns null when the server cannot answer, or is too old to report a count:
+// the caller must then leave the existing window alone rather than guess.
+async function windowConnected(port, waitMs) {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    let h = null;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(700) });
+      if (res.ok) h = await res.json();
+    } catch (_) {}
+    if (!h || typeof h.clients !== 'number') return null;
+    if (h.clients > 0) return true;
+    if (Date.now() >= deadline) return false;
+    await sleep(250);
+  }
+}
+
+// Parallel tool calls fire parallel hooks, and two runs that both decide to
+// launch produce two windows. Only the holder of this lock opens one; the other
+// waits for the window already on its way.
+function claimLock() {
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+  try {
+    fs.writeFileSync(launchLockPath, String(process.pid), { flag: 'wx' });
+    return true;
+  } catch (_) {}
+  try {
+    // A lock left behind by a run that died must not wedge the window shut.
+    if (Date.now() - fs.statSync(launchLockPath).mtimeMs > 20_000) {
+      fs.unlinkSync(launchLockPath);
+      fs.writeFileSync(launchLockPath, String(process.pid), { flag: 'wx' });
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+function releaseLock() {
+  try {
+    fs.unlinkSync(launchLockPath);
+  } catch (_) {}
+}
+
+async function openWindow(url, port, sweep) {
+  if (!claimLock()) {
+    const up = await windowConnected(port, 5000);
+    return { mode: up ? 'already open' : 'launching' };
+  }
+  try {
+    // Nothing is on screen, so any browser still running out of the profile is
+    // a leftover — and it holds the profile's lock, which a new window needs.
+    if (sweep) for (const p of profilePids()) await terminate(p);
+    return launch(url);
+  } finally {
+    releaseLock();
+  }
+}
+
+// Opens the preview window if one is not already on screen. A window that is
+// still up is left where it is — its content updates over SSE without stealing
+// focus.
+async function ensure(url, port) {
   const st = readState();
-  if (st.mode === 'default-browser') {
-    // A plain tab cannot be tracked by pid; the page reconnects on its own.
-    return { mode: 'default-browser' };
+  const pid = ours(st.pid) ? st.pid : null;
+  const recent = st.at && Date.now() - st.at < 10_000;
+
+  // Give a window that plausibly exists time to (re)connect before writing it
+  // off: the page retries every 1.5s, so a server that restarted underneath a
+  // perfectly good window must not be mistaken for a closed one.
+  const connected = await windowConnected(port, pid || recent ? 2500 : 0);
+
+  if (connected === null) {
+    // No usable answer. Fall back to the old pid-shaped guess and do nothing
+    // destructive on the strength of it.
+    if (pid) return { mode: focus(pid) ? 'focused' : 'already open', pid };
+    if (st.mode === 'default-browser') return { mode: 'default-browser' };
+    return openWindow(url, port, false);
   }
-  if (alive(st.pid)) {
-    return { mode: focus(st.pid) ? 'focused' : 'already open', pid: st.pid };
+
+  if (connected) {
+    if (st.mode === 'default-browser') return { mode: 'default-browser' };
+    // browser.json may name a launcher that has since exited; the process table
+    // still knows which browser is holding the window up.
+    const target = pid || profilePids()[0];
+    if (!target) return { mode: 'already open' };
+    return { mode: focus(target) ? 'focused' : 'already open', pid: target };
   }
-  return launch(url);
+
+  // Nothing is listening, so there is no window — whatever browser.json says.
+  return openWindow(url, port, true);
 }
 
 function close() {
   const st = readState();
-  if (alive(st.pid)) {
+  const pids = new Set(profilePids());
+  if (ours(st.pid)) pids.add(st.pid);
+  for (const pid of pids) {
     try {
-      process.kill(st.pid, 'SIGTERM');
+      process.kill(pid, 'SIGTERM');
     } catch (_) {}
   }
   try {
@@ -203,4 +348,17 @@ function close() {
   } catch (_) {}
 }
 
-module.exports = { ensure, launch, focus, close, alive, findBrowser, reveal, readState };
+module.exports = {
+  ensure,
+  launch,
+  focus,
+  close,
+  alive,
+  ours,
+  terminate,
+  profilePids,
+  findBrowser,
+  reveal,
+  readState,
+  windowConnected,
+};

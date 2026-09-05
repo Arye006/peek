@@ -75,7 +75,7 @@ async function cmdOpen(file, opts) {
 
   const url = `http://127.0.0.1:${st.port}/`;
   let window = { mode: 'skipped' };
-  if (!opts.noWindow) window = win.ensure(url);
+  if (!opts.noWindow) window = await win.ensure(url, st.port);
 
   if (!opts.quiet) {
     console.log(`peek  ${path.basename(abs)}`);
@@ -90,12 +90,10 @@ async function cmdStatus() {
   if (!st) return console.log('peek: not running');
   const h = await req(st.port, '/health');
   const b = win.readState();
-  const window =
-    b.mode === 'default-browser'
-      ? 'default browser tab'
-      : win.alive(b.pid)
-        ? `open (${b.browser || 'browser'}, pid ${b.pid})`
-        : 'closed';
+  const label = b.mode === 'default-browser' ? 'default browser tab' : `${b.browser || 'browser'}, pid ${b.pid}`;
+  // A browser process with no window connected is not an open preview — see
+  // windowConnected() in window.js.
+  const window = h.clients > 0 ? `open (${label})` : win.ours(b.pid) ? `closed (${label} still running)` : 'closed';
   console.log('peek: running');
   console.log(`  url     http://127.0.0.1:${st.port}/`);
   console.log(`  server  pid ${st.serverPid}`);

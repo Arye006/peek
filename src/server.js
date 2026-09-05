@@ -217,7 +217,15 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (route === '/health') {
-      return send(res, 200, { ok: true, pid: process.pid, active: state.active, docs: state.docs.length });
+      // `clients` is how the CLI tells a window that is on screen from one that
+      // was closed behind a browser process that outlived it.
+      return send(res, 200, {
+        ok: true,
+        pid: process.pid,
+        active: state.active,
+        docs: state.docs.length,
+        clients: clients.size,
+      });
     }
 
     if (route === '/' || route === '/index.html') {
@@ -310,6 +318,30 @@ function shutdown(code) {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
+// Whether the port is held by a peek server sharing this state directory —
+// which makes it a twin of this process, not merely a neighbour. Only a twin
+// contends for state.json, and only a twin should win it. The winner writes
+// state.json just after it binds, so give it a moment to appear.
+async function twinOn(port) {
+  for (let i = 0; i < 6; i++) {
+    let s = null;
+    try {
+      s = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    } catch (_) {}
+    if (s && s.port === port && s.serverPid !== process.pid) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(500) });
+        const h = await res.json();
+        return !!(h && h.ok);
+      } catch (_) {
+        return false;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  return false;
+}
+
 async function main() {
   const initial = process.argv[2];
   fs.mkdirSync(STATE_DIR, { recursive: true });
@@ -326,6 +358,12 @@ async function main() {
   try {
     await listen(DEFAULT_PORT);
   } catch (_) {
+    // Two writes in quick succession can race two servers into being. If the
+    // port is held by a twin, step aside: binding a second port would hand this
+    // process state.json while the window keeps talking to the other server,
+    // and the preview would silently stop updating. An unrelated occupant just
+    // means picking a free port, as before.
+    if (await twinOn(DEFAULT_PORT)) process.exit(0);
     await listen(0);
   }
 

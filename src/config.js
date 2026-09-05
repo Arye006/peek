@@ -13,6 +13,7 @@ module.exports = {
   statePath: path.join(STATE_DIR, 'state.json'),
   browserStatePath: path.join(STATE_DIR, 'browser.json'),
   browserProfile: path.join(STATE_DIR, 'browser-profile'),
+  launchLockPath: path.join(STATE_DIR, 'launch.lock'),
   logPath: path.join(STATE_DIR, 'server.log'),
   userConfigPath: path.join(STATE_DIR, 'config.json'),
   DEFAULT_PORT: 7654,
