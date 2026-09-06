@@ -2,7 +2,7 @@
 
 All notable changes to peek. This project follows [semantic versioning](https://semver.org).
 
-## Unreleased
+## 1.0.1
 
 ### Fixed
 

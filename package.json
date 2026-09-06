@@ -1,6 +1,6 @@
 {
   "name": "peek",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Live markdown preview in a dedicated window, for the plans Claude Code writes",
   "type": "commonjs",
   "bin": {
