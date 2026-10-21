@@ -125,8 +125,10 @@ ln -s "$PWD/bin/peek" ~/.local/bin/peek   # optional, puts `peek` on PATH
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules. The short version:
+
 ```bash
-node --test test/*.test.js   # 28 tests, no setup required
+node --test test/*.test.js   # the test suite, no setup required
 npm install && npm run typecheck   # type-check the sources
 ./tools/vendor.sh            # refresh vendor/ from pinned upstream releases
 ./tools/screenshot.sh        # regenerate the screenshots above
