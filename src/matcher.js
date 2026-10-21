@@ -10,7 +10,8 @@ const DEFAULTS = {
   // Accessibility permission the first time, and a silent live update is usually
   // what you want while you are still typing in the terminal. macOS only.
   focusWindow: false,
-  // Any of these in the file name (case-insensitive) marks it as a plan.
+  // Any of these as a whole word in the file name (case-insensitive) marks it
+  // as a plan.
   filenamePatterns: [
     'plan', 'design', 'proposal', 'rfc', 'spec', 'roadmap',
     'architecture', 'migration', 'implementation', 'todo', 'tasks', 'checklist',
@@ -40,6 +41,31 @@ function loadConfig() {
   }
 }
 
+// Split a name into lowercase words on `-`, `_`, `.`, space and camelCase
+// humps: `rollout-plan.md` becomes ['rollout', 'plan', 'md'] and `designDoc.md`
+// becomes ['design', 'doc', 'md']. Splitting before lowercasing is what keeps
+// the camelCase boundary visible.
+function nameWords(name) {
+  return name
+    .split(/[\s._-]+/)
+    .flatMap((part) => part.replace(/([a-z\d])([A-Z])/g, '$1 $2').split(' '))
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+}
+
+// A pattern matches when its own words appear as one unbroken run in the
+// name's words. Every default pattern is a single word, so this reduces to
+// whole-word equality — `plan` hits `rollout-plan.md` but not `inspect.md` —
+// while a multi-word pattern like `my-plan` still matches across separators.
+function matchesName(words, pattern) {
+  const wanted = nameWords(pattern);
+  if (wanted.length === 0) return false;
+  for (let at = 0; at + wanted.length <= words.length; at += 1) {
+    if (wanted.every((word, i) => words[at + i] === word)) return true;
+  }
+  return false;
+}
+
 // Decides whether a written file is a plan worth putting on screen. Kept pure
 // apart from reading the file itself, so it is straightforward to test.
 function isPlan(file, cfg = DEFAULTS) {
@@ -57,8 +83,8 @@ function isPlan(file, cfg = DEFAULTS) {
   }
   if (!st.isFile() || st.size < cfg.minBytes) return false;
 
-  const base = path.basename(abs).toLowerCase();
-  if (cfg.filenamePatterns.some((p) => base.includes(p.toLowerCase()))) return true;
+  const words = nameWords(path.basename(abs));
+  if (cfg.filenamePatterns.some((p) => matchesName(words, p))) return true;
 
   // Path patterns are written with forward slashes; normalise for Windows.
   const posix = abs.split(path.sep).join('/');

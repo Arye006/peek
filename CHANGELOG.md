@@ -6,6 +6,13 @@ All notable changes to peek. This project follows [semantic versioning](https://
 
 ### Fixed
 
+- `filenamePatterns` were plain substring checks on the basename, so a word that merely
+  *contained* a pattern opened a window: `inspect-notes.md` matched `spec`, `planets.md` matched
+  `plan`, and `respect.md` and `redesigned-logo.md` matched `spec` and `design`. Patterns now
+  match whole words, with the name split on `-`, `_`, `.`, space and camelCase humps, so
+  `rollout-plan.md`, `PLAN.md` and `designDoc.md` still match while `inspect.md` does not. A
+  multi-word pattern such as `my-plan` keeps matching across separators, and an empty pattern
+  now matches nothing instead of everything.
 - Windows window cleanup checks process command lines through PowerShell before signalling
   a recorded pid and finds the browser by its preview profile when the launcher has exited.
   If the process query is unavailable, cleanup silently leaves processes alone.
