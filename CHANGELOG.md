@@ -2,6 +2,12 @@
 
 All notable changes to peek. This project follows [semantic versioning](https://semver.org).
 
+## Unreleased
+
+### Improved
+
+- Expand browser discovery across Windows, Linux and macOS to recognize additional browser installation locations and variants.
+
 ## 1.0.1
 
 ### Fixed
