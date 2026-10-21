@@ -7,12 +7,13 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
+const { once } = require('events');
 
 // window.js reads its paths at require time, so the state dir has to be set first.
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'peek-win-'));
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "peek win's café-"));
 process.env.PEEK_STATE_DIR = TMP;
 const win = require('../src/window');
-const { browserProfile } = require('../src/config');
+const { browserProfile, browserStatePath } = require('../src/config');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,8 +81,11 @@ test('ours() tells peek\'s browser from a recycled pid', async () => {
   const mine = spawn(process.execPath, ['-e', 'setInterval(()=>{},1e9)', browserProfile], {
     detached: true,
     stdio: 'ignore',
+    windowsHide: true,
   });
-  const theirs = spawn(process.execPath, ['-e', 'setInterval(()=>{},1e9)'], { detached: true, stdio: 'ignore' });
+  const theirs = spawn(process.execPath, ['-e', 'setInterval(()=>{},1e9)'], {
+    detached: true, stdio: 'ignore', windowsHide: true,
+  });
   mine.unref();
   theirs.unref();
   await sleep(400);
@@ -98,10 +102,34 @@ test('ours() tells peek\'s browser from a recycled pid', async () => {
   } finally {
     for (const c of [mine, theirs]) {
       try {
-        process.kill(c.pid, 'SIGKILL');
+        c.kill('SIGKILL');
       } catch (_) {}
     }
   }
+});
+
+test('close finds the profile browser without signalling a recycled pid or a helper', { timeout: 15000 }, async (t) => {
+  async function child(args) {
+    const proc = spawn(process.execPath, ['-e', 'process.send("ready"); setInterval(()=>{},1e9)', ...args], {
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true,
+    });
+    t.after(() => { proc.kill('SIGKILL'); });
+    await once(proc, 'message');
+    proc.disconnect();
+    return proc;
+  }
+  const browser = await child([browserProfile]);
+  const helper = await child([browserProfile, '--type=renderer']);
+  const unrelated = await child([]);
+  fs.writeFileSync(browserStatePath, JSON.stringify({ pid: unrelated.pid }));
+  const closed = once(browser, 'exit');
+
+  win.close();
+
+  await closed;
+  assert.ok(win.alive(unrelated.pid), 'the unrelated process behind the recorded pid survives');
+  assert.ok(win.alive(helper.pid), 'helpers are not selected as the browser process');
+  assert.equal(fs.existsSync(browserStatePath), false);
 });
 
 test('a dead pid is never signalled', () => {

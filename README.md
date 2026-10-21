@@ -107,6 +107,9 @@ tab in your default browser.
 Tested on macOS and Linux. Windows paths are implemented but lightly travelled; the hook needs
 a POSIX `sh` on PATH, which Git Bash and WSL both provide. Bug reports welcome.
 
+On Windows, window cleanup uses PowerShell to check which processes belong to peek's browser
+profile. If that query is unavailable, it leaves processes alone rather than trusting a stored pid.
+
 ## Without the plugin
 
 peek is a plain Node program, so it works standalone:
