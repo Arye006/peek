@@ -2,6 +2,14 @@
 
 All notable changes to peek. This project follows [semantic versioning](https://semver.org).
 
+## Unreleased
+
+### Fixed
+
+- Windows window cleanup checks process command lines through PowerShell before signalling
+  a recorded pid and finds the browser by its preview profile when the launcher has exited.
+  If the process query is unavailable, cleanup silently leaves processes alone.
+
 ## 1.0.1
 
 ### Fixed

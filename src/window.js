@@ -93,13 +93,76 @@ function alive(pid) {
   }
 }
 
+// Windows quotes and backslashes determine argument boundaries. Match the whole
+// profile argument so a sibling profile with the same prefix is never ours.
+// https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments
+function windowsArguments(command) {
+  const args = [];
+  let argument = '';
+  let quoted = false;
+  for (let i = 0; i < command.length; i++) {
+    let slashes = 0;
+    while (command[i] === '\\') {
+      slashes++;
+      i++;
+    }
+    if (command[i] === '"') {
+      argument += '\\'.repeat(Math.floor(slashes / 2));
+      if (slashes % 2) {
+        argument += '"';
+      } else if (quoted && command[i + 1] === '"') {
+        argument += '"';
+        i++;
+      } else {
+        quoted = !quoted;
+      }
+    } else {
+      argument += '\\'.repeat(slashes);
+      if (i === command.length || (!quoted && /[ \t]/.test(command[i]))) {
+        if (argument) args.push(argument);
+        argument = '';
+      } else {
+        argument += command[i];
+      }
+    }
+  }
+  if (argument) args.push(argument);
+  return args;
+}
+
+// Query only profile-matching command lines, without interpolating the profile
+// path into PowerShell code. An unavailable query must leave processes alone.
+function windowsProfileProcesses() {
+  try {
+    const out = execFileSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+      '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ' +
+      '$ErrorActionPreference = "Stop"; ' +
+      'Get-CimInstance Win32_Process | ' +
+      'Where-Object { $_.CommandLine -and $_.CommandLine.Contains($env:PEEK_BROWSER_PROFILE) } | ' +
+      'Select-Object ProcessId, CommandLine | ConvertTo-Json -Compress',
+    ], {
+      encoding: 'utf8', windowsHide: true, timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      env: { ...process.env, PEEK_BROWSER_PROFILE: browserProfile },
+    });
+    const rows = JSON.parse(out.replace(/^\uFEFF/, ''));
+    return (Array.isArray(rows) ? rows : [rows]).filter((p) =>
+      p && Number.isInteger(p.ProcessId) && p.ProcessId > 0 && p.ProcessId !== process.pid &&
+      typeof p.CommandLine === 'string' && windowsArguments(p.CommandLine).slice(1).some((arg) =>
+        arg === browserProfile || arg === `--user-data-dir=${browserProfile}`
+      )
+    );
+  } catch (_) {
+    return [];
+  }
+}
+
 // pids are recycled, so a live pid is not proof it is still our browser. Check
-// the command line before signalling it — killing whatever inherited the number
-// would be a good deal worse than failing to close a window. Windows has no
-// equally cheap equivalent, so there the pid is taken at face value.
+// the command line before signalling it rather than trust the recorded number.
 function ours(pid) {
   if (!alive(pid)) return false;
-  if (PLATFORM === 'win32') return true;
+  if (PLATFORM === 'win32') return windowsProfileProcesses().some((p) => p.ProcessId === pid);
   try {
     const cmd = execFileSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], { encoding: 'utf8' });
     return cmd.includes(browserProfile);
@@ -115,7 +178,11 @@ function ours(pid) {
 // table sidesteps that bookkeeping entirely. Helper processes carry --type=;
 // the browser itself does not, and killing it takes its helpers with it.
 function profilePids() {
-  if (PLATFORM === 'win32') return [];
+  if (PLATFORM === 'win32') {
+    return windowsProfileProcesses()
+      .filter((p) => !p.CommandLine.includes('--type='))
+      .map((p) => p.ProcessId);
+  }
   try {
     const out = execFileSync('ps', ['-ww', '-Ao', 'pid=,command='], { encoding: 'utf8' });
     return out
