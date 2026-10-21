@@ -60,12 +60,17 @@ any one of:
 
 | Rule | Default |
 |---|---|
-| Filename contains | `plan`, `design`, `proposal`, `rfc`, `spec`, `roadmap`, `architecture`, `migration`, `implementation`, `todo`, `tasks`, `checklist` |
+| Filename contains, as a whole word | `plan`, `design`, `proposal`, `rfc`, `spec`, `roadmap`, `architecture`, `migration`, `implementation`, `todo`, `tasks`, `checklist` |
 | Path contains | `/scratchpad/`, `/.claude/plans/`, `/docs/plans/` |
 | An `#`/`##` heading in the first 4 KB matches | `plan\|proposal\|design\|rfc\|spec\|roadmap\|architecture\|migration\|implementation\|approach` |
 
 Excluded whatever else matches: `README*`, `CHANGELOG*`, `LICENSE*`, `CONTRIBUTING*`,
 `CLAUDE.md`, anything under `node_modules/`.
+
+Filename patterns are matched against whole words: the name is split on `-`, `_`, `.`, spaces and
+camelCase humps before comparing. So `rollout-plan.md`, `PLAN.md` and `designDoc.md` are plans,
+while `inspect.md` and `planets.md` are not — a pattern sitting inside a longer word does not
+count. A multi-word pattern such as `my-plan` still matches across separators.
 
 Every one of those lists lives in `~/.claude/peek/config.json`, written on first run. Edit it
 and the next write picks up the change — no restart. `"enabled": false` mutes the hook without
@@ -101,6 +106,9 @@ tab in your default browser.
 
 Tested on macOS and Linux. Windows paths are implemented but lightly travelled; the hook needs
 a POSIX `sh` on PATH, which Git Bash and WSL both provide. Bug reports welcome.
+
+On Windows, window cleanup uses PowerShell to check which processes belong to peek's browser
+profile. If that query is unavailable, it leaves processes alone rather than trusting a stored pid.
 
 ## Without the plugin
 

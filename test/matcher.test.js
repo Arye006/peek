@@ -23,6 +23,19 @@ test('matches on a plan-ish filename', () => {
   assert.ok(isPlan(write('API-DESIGN.md', `# Anything\n\n${PAD}`), DEFAULTS));
 });
 
+test('matches filename patterns across separators and camelCase', () => {
+  assert.ok(isPlan(write('rollout-plan.md', `# Anything\n\n${PAD}`), DEFAULTS));
+  assert.ok(isPlan(write('PLAN.md', `# Anything\n\n${PAD}`), DEFAULTS));
+  assert.ok(isPlan(write('designDoc.md', `# Anything\n\n${PAD}`), DEFAULTS));
+});
+
+test('does not match a filename pattern inside a longer word', () => {
+  assert.equal(isPlan(write('inspect-notes.md', `# Anything\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('planets.md', `# Anything\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('respect.md', `# Anything\n\n${PAD}`), DEFAULTS), false);
+  assert.equal(isPlan(write('redesigned-logo.md', `# Anything\n\n${PAD}`), DEFAULTS), false);
+});
+
 test('matches on a plan-ish heading even with a neutral filename', () => {
   assert.ok(isPlan(write('notes.md', `# Migration approach\n\n${PAD}`), DEFAULTS));
   assert.ok(isPlan(write('scratch.md', `## Implementation plan\n\n${PAD}`), DEFAULTS));
@@ -60,6 +73,18 @@ test('honours a caller-supplied config', () => {
   const strict = { ...DEFAULTS, filenamePatterns: ['blueprint'], pathPatterns: [], headingPattern: 'zzz' };
   assert.ok(isPlan(write('blueprint.md', `# X\n\n${PAD}`), strict));
   assert.equal(isPlan(write('plan.md', `# X\n\n${PAD}`), strict), false);
+});
+
+test('matches a multi-word filename pattern across separators', () => {
+  const cfg = { ...DEFAULTS, filenamePatterns: ['my-plan'], pathPatterns: [], headingPattern: 'zzz' };
+  assert.ok(isPlan(write('my-plan.md', `# X\n\n${PAD}`), cfg));
+  assert.ok(isPlan(write('myPlan.md', `# X\n\n${PAD}`), cfg));
+  assert.equal(isPlan(write('your-plan.md', `# X\n\n${PAD}`), cfg), false);
+});
+
+test('treats an empty filename pattern as matching nothing', () => {
+  const cfg = { ...DEFAULTS, filenamePatterns: [''], pathPatterns: [], headingPattern: 'zzz' };
+  assert.equal(isPlan(write('anything.md', `# X\n\n${PAD}`), cfg), false);
 });
 
 test.after(() => fs.rmSync(DIR, { recursive: true, force: true }));
